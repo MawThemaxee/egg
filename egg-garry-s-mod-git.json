@@ -13,7 +13,7 @@
         "steam_disk_space"
     ],
     "docker_images": {
-        "ghcr.io/MawTheMaxee/gmod-git:latest": "ghcr.io/MawTheMaxee/gmod-git:latest"
+        "ghcr.io/MawTheMaxee/gmod-git:latest": "ghcr.io/mawthemaxee/source-git:latest"
     },
     "file_denylist": [],
     "startup": "bash -c 'GIT_REPO_PATH=/mnt/server/git-config; if [ \"$GIT_AUTO_UPDATE\" = \"1\" ] && [ -n \"$GIT_REPO\" ] && command -v git &>/dev/null; then GIT_URL=\"$GIT_REPO\"; [ -n \"$GIT_TOKEN\" ] && GIT_URL=\"https://$GIT_TOKEN@${GIT_REPO##*//*}\"; if [ -d \"$GIT_REPO_PATH\" ]; then cd $GIT_REPO_PATH && git fetch origin && git checkout $GIT_BRANCH && git pull origin $GIT_BRANCH; else git clone --branch $GIT_BRANCH \"$GIT_URL\" $GIT_REPO_PATH; fi; [ -d \"$GIT_REPO_PATH/garrysmod/addons\" ] && cp -rf $GIT_REPO_PATH/garrysmod/addons/* /mnt/server/garrysmod/addons/ 2>/dev/null; [ -d \"$GIT_REPO_PATH/garrysmod/gamemodes\" ] && cp -rf $GIT_REPO_PATH/garrysmod/gamemodes/* /mnt/server/garrysmod/gamemodes/ 2>/dev/null; fi; cd /home/container && ./srcds_run -game garrysmod -console -port $SERVER_PORT +ip 0.0.0.0 +host_workshop_collection $WORKSHOP_ID +map $SRCDS_MAP +gamemode $GAMEMODE -strictportbind -norestart +sv_setsteamaccount $STEAM_TOKEN +maxplayers $MAX_PLAYERS -tickrate $TICKRATE $( [ \"$LUA_REFRESH\" = \"1\" ] || printf %s \"-disableluarefresh\" )'",
