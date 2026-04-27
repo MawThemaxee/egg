@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  gmod-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gmod-pterodactyl:latest
+    container_name: gmod-pterodactyl-test
+    
+    # For testing locally - expose ports
+    ports:
+      - "27015:27015/udp"
+      - "27015:27015/tcp"
+    
+    volumes:
+      # Persistent server files
+      - ./server_data:/mnt/server
+      - ./git_config:/mnt/server/git-config
+    
+    environment:
+      # Game configuration
+      SRCDS_MAP: gm_flatgrass
+      SRCDS_APPID: 4020
+      GAMEMODE: sandbox
+      MAX_PLAYERS: 32
+      TICKRATE: 22
+      LUA_REFRESH: 0
+      
+      # Steam configuration
+      STEAM_TOKEN: ""
+      WORKSHOP_ID: ""
+      
+      # GitHub configuration
+      GIT_REPO: ""
+      GIT_BRANCH: main
+      GIT_TOKEN: ""
+      GIT_AUTO_UPDATE: 0
+      
+      # Server ports
+      SERVER_PORT: 27015
+    
+    stdin_open: true
+    tty: true
+    
+    # Auto-restart on crash
+    restart: unless-stopped
+    
+    # Resource limits (optional)
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '2'
+          memory: 2G

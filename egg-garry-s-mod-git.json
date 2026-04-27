@@ -1,0 +1,165 @@
+{
+    "_comment": "Garry's Mod Pterodactyl Egg - Custom Docker version with Git support",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2026-04-27T00:00:00Z",
+    "name": "Garrys Mod avec support GitHub",
+    "author": "support@pterodactyl.io",
+    "description": "Garry's Mod sur Docker personnalisé avec Git, support pour repos GitHub publics/privés, et mise à jour automatique des fichiers.",
+    "features": [
+        "gsl_token",
+        "steam_disk_space"
+    ],
+    "docker_images": {
+        "ghcr.io/MawTheMaxee/gmod-git:latest": "ghcr.io/MawTheMaxee/gmod-git:latest"
+    },
+    "file_denylist": [],
+    "startup": "bash -c 'GIT_REPO_PATH=/mnt/server/git-config; if [ \"$GIT_AUTO_UPDATE\" = \"1\" ] && [ -n \"$GIT_REPO\" ] && command -v git &>/dev/null; then GIT_URL=\"$GIT_REPO\"; [ -n \"$GIT_TOKEN\" ] && GIT_URL=\"https://$GIT_TOKEN@${GIT_REPO##*//*}\"; if [ -d \"$GIT_REPO_PATH\" ]; then cd $GIT_REPO_PATH && git fetch origin && git checkout $GIT_BRANCH && git pull origin $GIT_BRANCH; else git clone --branch $GIT_BRANCH \"$GIT_URL\" $GIT_REPO_PATH; fi; [ -d \"$GIT_REPO_PATH/garrysmod/addons\" ] && cp -rf $GIT_REPO_PATH/garrysmod/addons/* /mnt/server/garrysmod/addons/ 2>/dev/null; [ -d \"$GIT_REPO_PATH/garrysmod/gamemodes\" ] && cp -rf $GIT_REPO_PATH/garrysmod/gamemodes/* /mnt/server/garrysmod/gamemodes/ 2>/dev/null; fi; cd /home/container && ./srcds_run -game garrysmod -console -port $SERVER_PORT +ip 0.0.0.0 +host_workshop_collection $WORKSHOP_ID +map $SRCDS_MAP +gamemode $GAMEMODE -strictportbind -norestart +sv_setsteamaccount $STEAM_TOKEN +maxplayers $MAX_PLAYERS -tickrate $TICKRATE $( [ \"$LUA_REFRESH\" = \"1\" ] || printf %s \"-disableluarefresh\" )'",
+    "config": {
+        "files": "{}",
+        "startup": "{\r\n    \"done\": \"gameserver Steam ID\"\r\n}",
+        "logs": "{}",
+        "stop": "quit"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/bash\r\n# Installation script - Git is already installed in the Docker image\r\necho \"Installing Garry's Mod server files...\"\r\ncd /tmp\r\nmkdir -p /mnt/server/steamcmd\r\ncurl -sSL -o steamcmd.tar.gz https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz\r\ntar -xzvf steamcmd.tar.gz -C /mnt/server/steamcmd\r\nmkdir -p /mnt/server/steamapps\r\ncd /mnt/server/steamcmd\r\nchown -R root:root /mnt\r\nexport HOME=/mnt/server\r\n\r\nBETA_FLAG=\"\"\r\nif [ ! -z \"${SRCDS_BETA_BRANCH}\" ]; then\r\n    BETA_FLAG=\"-beta ${SRCDS_BETA_BRANCH}\"\r\nfi\r\n\r\nif [ \"${STEAM_USER}\" == \"\" ]; then\r\n    STEAM_USER=anonymous\r\n    STEAM_PASS=\"\"\r\n    STEAM_AUTH=\"\"\r\nfi\r\n\r\n./steamcmd.sh +force_install_dir /mnt/server +login ${STEAM_USER} ${STEAM_PASS} ${STEAM_AUTH} $( [[ \"${WINDOWS_INSTALL}\" == \"1\" ]] && printf %s '+@sSteamCmdForcePlatformType windows' ) +app_update ${SRCDS_APPID} ${BETA_FLAG} ${EXTRA_FLAGS} validate +quit\r\n\r\nmkdir -p /mnt/server/.steam/sdk32\r\ncp -v linux32/steamclient.so ../.steam/sdk32/steamclient.so\r\n\r\nmkdir -p /mnt/server/.steam/sdk64\r\ncp -v linux64/steamclient.so ../.steam/sdk64/steamclient.so\r\n\r\nif [ ! -z \"${GIT_REPO}\" ]; then\r\n    echo \"Cloning repository from GitHub...\"\r\n    GIT_REPO_PATH=\"/mnt/server/git-config\"\r\n    \r\n    if [ ! -z \"${GIT_TOKEN}\" ]; then\r\n        GIT_URL=\"https://${GIT_TOKEN}@$(echo ${GIT_REPO} | sed 's|https://||')\"\r\n    else\r\n        GIT_URL=\"${GIT_REPO}\"\r\n    fi\r\n    \r\n    if [ -d \"${GIT_REPO_PATH}\" ]; then\r\n        cd ${GIT_REPO_PATH}\r\n        git fetch origin\r\n        git checkout ${GIT_BRANCH}\r\n        git pull origin ${GIT_BRANCH}\r\n    else\r\n        git clone --branch ${GIT_BRANCH} \"${GIT_URL}\" ${GIT_REPO_PATH}\r\n    fi\r\n    \r\n    cd ${GIT_REPO_PATH}\r\n    \r\n    if [ -d \"linux64\" ]; then\r\n        cp -rfv linux64/* /mnt/server/linux64/ 2>/dev/null || true\r\n    fi\r\n    \r\n    if [ -d \"bin\" ]; then\r\n        cp -rfv bin/* /mnt/server/bin/ 2>/dev/null || true\r\n    fi\r\n    \r\n    if [ -d \"garrysmod/addons\" ]; then\r\n        mkdir -p /mnt/server/garrysmod/addons\r\n        cp -rfv garrysmod/addons/* /mnt/server/garrysmod/addons/\r\n    fi\r\n    \r\n    if [ -d \"garrysmod/gamemodes\" ]; then\r\n        mkdir -p /mnt/server/garrysmod/gamemodes\r\n        cp -rfv garrysmod/gamemodes/* /mnt/server/garrysmod/gamemodes/\r\n    fi\r\n    \r\n    echo \"Repository cloned and files copied successfully!\"\r\nfi\r\n\r\ncd /mnt/server/garrysmod/lua/autorun/server\r\necho '-- Docs: https://wiki.garrysmod.com/page/resource/AddWorkshop\r\nresource.AddWorkshop( \"\" )' > workshop.lua\r\n\r\necho \"Installation complete!\"\r\n",
+            "container": "ghcr.io/pterodactyl/installers:debian",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Carte",
+            "description": "La carte par défaut du serveur.",
+            "env_variable": "SRCDS_MAP",
+            "default_value": "gm_flatgrass",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|alpha_dash",
+            "field_type": "text"
+        },
+        {
+            "name": "Jeton de Compte Steam",
+            "description": "Le jeton de compte Steam requis pour que le serveur soit affiché publiquement.",
+            "env_variable": "STEAM_TOKEN",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|alpha_num|size:32",
+            "field_type": "text"
+        },
+        {
+            "name": "ID Application Source",
+            "description": "Requis pour que le jeu se mette à jour au redémarrage du serveur. Ne modifiez pas ceci.",
+            "env_variable": "SRCDS_APPID",
+            "default_value": "4020",
+            "user_viewable": false,
+            "user_editable": false,
+            "rules": "required|integer|in:4020",
+            "field_type": "text"
+        },
+        {
+            "name": "Branche Bêta du Serveur",
+            "description": "Branche bêta du serveur (ex: x86-64, laisser vide pour version stable)",
+            "env_variable": "SRCDS_BETA_BRANCH",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string",
+            "field_type": "text"
+        },
+        {
+            "name": "ID Collection Workshop",
+            "description": "L'ID de votre collection Workshop (les chiffres à la fin de l'URL)",
+            "env_variable": "WORKSHOP_ID",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|integer",
+            "field_type": "text"
+        },
+        {
+            "name": "Mode de Jeu",
+            "description": "Le mode de jeu de votre serveur.",
+            "env_variable": "GAMEMODE",
+            "default_value": "sandbox",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string",
+            "field_type": "text"
+        },
+        {
+            "name": "Nombre Maximum de Joueurs",
+            "description": "Le nombre maximum de joueurs autorisés sur votre serveur de jeu.",
+            "env_variable": "MAX_PLAYERS",
+            "default_value": "32",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|integer|max:128",
+            "field_type": "text"
+        },
+        {
+            "name": "Tickrate",
+            "description": "Le tickrate définit la vitesse à laquelle le serveur met à jour la position de chaque entité.",
+            "env_variable": "TICKRATE",
+            "default_value": "22",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|integer|max:100",
+            "field_type": "text"
+        },
+        {
+            "name": "Actualisation Lua",
+            "description": "0 = désactiver l'actualisation Lua, 1 = activer l'actualisation Lua",
+            "env_variable": "LUA_REFRESH",
+            "default_value": "0",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|boolean",
+            "field_type": "text"
+        },
+        {
+            "name": "URL du Référentiel GitHub",
+            "description": "URL du référentiel GitHub (ex: https://github.com/user/repo.git)",
+            "env_variable": "GIT_REPO",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string",
+            "field_type": "text"
+        },
+        {
+            "name": "Branche GitHub",
+            "description": "Branche du référentiel (ex: main, master, develop)",
+            "env_variable": "GIT_BRANCH",
+            "default_value": "main",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string",
+            "field_type": "text"
+        },
+        {
+            "name": "Jeton GitHub",
+            "description": "Jeton GitHub pour référentiels privés (laisser vide si public)",
+            "env_variable": "GIT_TOKEN",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string",
+            "field_type": "text"
+        },
+        {
+            "name": "Mise à Jour Automatique Git",
+            "description": "Activer la mise à jour automatique du référentiel au démarrage (0=désactiver, 1=activer)",
+            "env_variable": "GIT_AUTO_UPDATE",
+            "default_value": "0",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|boolean",
+            "field_type": "text"
+        }
+    ]
+}
