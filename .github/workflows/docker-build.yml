@@ -30,6 +30,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Convert repository name to lowercase
+        id: lowercase
+        run: echo "image_name=$(echo ${{ env.IMAGE_NAME }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -44,7 +48,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.image_name }}
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
@@ -59,8 +63,8 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.image_name }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.image_name }}:buildcache,mode=max
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
